@@ -7,7 +7,7 @@ on:
       - main
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   build:
@@ -17,10 +17,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: List files
+      - name: Unpack project
         run: |
+          unzip -o ImageForge-GitHub.zip
           ls -la
-          find . -maxdepth 2 -type f | head -50
 
       - name: Setup JDK
         uses: actions/setup-java@v4
@@ -33,10 +33,14 @@ jobs:
         with:
           gradle-version: "9.3.1"
 
+      - name: Find gradlew
+        run: |
+          find . -name gradlew -type f
+
       - name: Build APK
         run: |
-          chmod +x ./gradlew
-          ./gradlew assembleDebug
+          chmod +x $(find . -name gradlew -type f | head -1)
+          $(find . -name gradlew -type f | head -1) assembleDebug
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
