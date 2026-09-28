@@ -9,8 +9,10 @@ on:
 permissions:
   contents: write
 
+
 jobs:
   build:
+
     runs-on: ubuntu-latest
 
     steps:
@@ -21,7 +23,7 @@ jobs:
 
       - name: Unpack project
         run: |
-          echo "=== ROOT BEFORE ==="
+          echo "=== ROOT ==="
           ls -la
 
           if [ -f ImageForge-GitHub-fixed.zip ]; then
@@ -33,7 +35,7 @@ jobs:
             exit 1
           fi
 
-          echo "=== PROJECT FILES ==="
+          echo "=== PROJECT TREE ==="
           find . -maxdepth 3 -type f | sort | head -100
 
 
@@ -47,22 +49,26 @@ jobs:
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
         with:
-          gradle-version: "8.9"
+          gradle-version: "9.3.1"
 
 
-      - name: Find project
+      - name: Find Android project
         id: project
         run: |
-          echo "Searching Android project..."
+          echo "Searching settings.gradle..."
 
-          DIR=$(find . -name "settings.gradle.kts" -o -name "settings.gradle" | head -1 | xargs dirname)
+          PROJECT=$(find . \( -name "settings.gradle" -o -name "settings.gradle.kts" \) | head -1)
 
-          if [ -z "$DIR" ]; then
+          if [ -z "$PROJECT" ]; then
             echo "settings.gradle not found"
             exit 1
           fi
 
-          echo "Project root: $DIR"
+          DIR=$(dirname "$PROJECT")
+
+          echo "Found project:"
+          echo "$DIR"
+
           echo "path=$DIR" >> $GITHUB_OUTPUT
 
 
@@ -70,10 +76,13 @@ jobs:
         run: |
           cd "${{ steps.project.outputs.path }}"
 
-          echo "Building from:"
+          echo "Current directory:"
           pwd
 
-          gradle assembleDebug
+          echo "Files:"
+          ls -la
+
+          gradle assembleDebug --stacktrace
 
 
       - name: Find APK
