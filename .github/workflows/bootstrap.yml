@@ -9,10 +9,8 @@ on:
 permissions:
   contents: write
 
-
 jobs:
   build:
-
     runs-on: ubuntu-latest
 
     steps:
@@ -21,25 +19,34 @@ jobs:
         uses: actions/checkout@v4
 
 
-      - name: Unpack project
+      - name: Find archive
         run: |
-          echo "=== ROOT ==="
+          echo "Files in repository:"
           ls -la
 
-          if [ -f ImageForge-GitHub-fixed.zip ]; then
-            unzip -o ImageForge-GitHub-fixed.zip
-          elif [ -f ImageForge-GitHub.zip ]; then
-            unzip -o ImageForge-GitHub.zip
+          if [ -f ImageForge-Direct-APIKey.zip ]; then
+            echo "Found ImageForge-Direct-APIKey.zip"
+          elif [ -f ImageForge-GitHub-fixed.zip ]; then
+            echo "Found ImageForge-GitHub-fixed.zip"
           else
             echo "Archive not found"
             exit 1
           fi
 
-          echo "=== PROJECT TREE ==="
+
+      - name: Unpack project
+        run: |
+          if [ -f ImageForge-Direct-APIKey.zip ]; then
+            unzip -o ImageForge-Direct-APIKey.zip
+          else
+            unzip -o ImageForge-GitHub-fixed.zip
+          fi
+
+          echo "Project files:"
           find . -maxdepth 3 -type f | sort | head -100
 
 
-      - name: Setup JDK
+      - name: Setup JDK 17
         uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -55,18 +62,20 @@ jobs:
       - name: Find Android project
         id: project
         run: |
-          echo "Searching settings.gradle..."
+          echo "Searching project..."
 
-          PROJECT=$(find . \( -name "settings.gradle" -o -name "settings.gradle.kts" \) | head -1)
+          SETTINGS=$(find . \
+          \( -name "settings.gradle" -o -name "settings.gradle.kts" \) \
+          | head -1)
 
-          if [ -z "$PROJECT" ]; then
+          if [ -z "$SETTINGS" ]; then
             echo "settings.gradle not found"
             exit 1
           fi
 
-          DIR=$(dirname "$PROJECT")
+          DIR=$(dirname "$SETTINGS")
 
-          echo "Found project:"
+          echo "Project root:"
           echo "$DIR"
 
           echo "path=$DIR" >> $GITHUB_OUTPUT
@@ -76,24 +85,21 @@ jobs:
         run: |
           cd "${{ steps.project.outputs.path }}"
 
-          echo "Current directory:"
+          echo "Building from:"
           pwd
-
-          echo "Files:"
-          ls -la
 
           gradle assembleDebug --stacktrace
 
 
       - name: Find APK
         run: |
-          echo "Searching APK..."
+          echo "Searching APK:"
           find . -name "*.apk"
 
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: ImageForge-debug-apk
+          name: ImageForge-Direct-APIKey-apk
           path: "**/app-debug.apk"
           if-no-files-found: error
