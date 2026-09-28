@@ -7,20 +7,38 @@ on:
       - main
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   build:
     runs-on: ubuntu-latest
 
     steps:
+
       - name: Checkout
         uses: actions/checkout@v4
 
+
+      - name: List repository
+        run: |
+          echo "=== ROOT ==="
+          ls -la
+          echo "=== FILES ==="
+          find . -maxdepth 3 -type f | head -100
+
+
       - name: Unpack project
         run: |
-          unzip -o ImageForge-GitHub.zip
-          ls -la
+          if [ -f ImageForge-GitHub.zip ]; then
+            echo "ZIP found"
+            unzip -o ImageForge-GitHub.zip
+          else
+            echo "ZIP not found"
+          fi
+
+          echo "=== AFTER UNPACK ==="
+          find . -maxdepth 3 -type f | head -100
+
 
       - name: Setup JDK
         uses: actions/setup-java@v4
@@ -28,22 +46,51 @@ jobs:
           distribution: temurin
           java-version: "17"
 
+
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
         with:
-          gradle-version: "9.3.1"
+          gradle-version: "8.9"
+
 
       - name: Find gradlew
+        id: gradle
         run: |
-          find . -name gradlew -type f
+          echo "Searching gradlew..."
+
+          GRADLEW=$(find . -name gradlew -type f | head -1)
+
+          if [ -z "$GRADLEW" ]; then
+            echo "gradlew not found"
+            exit 1
+          fi
+
+          echo "Found: $GRADLEW"
+          echo "path=$GRADLEW" >> $GITHUB_OUTPUT
+
 
       - name: Build APK
         run: |
-          chmod +x $(find . -name gradlew -type f | head -1)
-          $(find . -name gradlew -type f | head -1) assembleDebug
+          GRADLEW="${{ steps.gradle.outputs.path }}"
+
+          chmod +x "$GRADLEW"
+
+          DIR=$(dirname "$GRADLEW")
+
+          cd "$DIR"
+
+          ./gradlew assembleDebug
+
+
+      - name: Find APK
+        run: |
+          echo "Searching APK..."
+          find . -name "*.apk"
+
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: ImageForge-debug-apk
           path: "**/app-debug.apk"
+          if-no-files-found: error
