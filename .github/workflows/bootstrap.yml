@@ -19,39 +19,72 @@ jobs:
 
       - name: Unpack project
         run: |
-          unzip -o ImageForge-Direct-APIKey-fixed-v2.zip
-          find . -maxdepth 3 -type f | head -50
+          echo "Files before unpack:"
+          ls -la
+
+          if [ -f "ImageForge-Direct-APIKey-fixed-v2.zip" ]; then
+            unzip -o ImageForge-Direct-APIKey-fixed-v2.zip
+          fi
+
+          echo "Files after unpack:"
+          find . -maxdepth 3 -type f | head -100
 
 
       - name: Setup JDK
         uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: 17
+          java-version: "17"
 
 
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
         with:
-          gradle-version: 9.3.1
+          gradle-version: "9.3.1"
 
 
       - name: Find Android project
+        id: project
         run: |
-          echo "Searching project..."
-          find . -name settings.gradle -o -name settings.gradle.kts
+          echo "Searching Android project..."
+
+          PROJECT=$(dirname $(find . -name settings.gradle.kts -o -name settings.gradle | head -1))
+
+          if [ -z "$PROJECT" ]; then
+            echo "Android project not found"
+            exit 1
+          fi
+
+          echo "Found:"
+          echo "$PROJECT"
+
+          echo "PROJECT=$PROJECT" >> $GITHUB_ENV
+
+
+      - name: Check project
+        run: |
+          cd "$PROJECT"
+
+          echo "Project files:"
+          ls -la
+
+          echo "Gradle files:"
+          find . -maxdepth 2 -name "*.gradle*" -o -name "gradlew"
 
 
       - name: Build APK
         run: |
-          PROJECT=$(dirname $(find . -name settings.gradle -o -name settings.gradle.kts | head -1))
           cd "$PROJECT"
-          chmod +x gradlew
-          ./gradlew assembleDebug
+
+          echo "Building..."
+
+          gradle assembleDebug --stacktrace
 
 
       - name: Find APK
         run: |
+          echo "Searching APK..."
+
           find . -name "*.apk"
 
 
@@ -59,4 +92,4 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ImageForge-debug-apk
-          path: "**/*.apk"
+          path: "**/build/outputs/apk/**/*.apk"
